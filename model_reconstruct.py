@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-from main import mnist_show
+from mnist_cnn import mnist_show
 
 def main():
     FIG_NO = 5
