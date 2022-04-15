@@ -31,6 +31,7 @@ def main():
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
     history = model.fit(x_train, y_train, batch_size=128, epochs=20, validation_split=0.2)
+    model.save("my_model")
 
     test_loss, test_acc = model.evaluate(x_test, y_test, verbose=0)
     print('Test loss:', test_loss)
