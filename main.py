@@ -19,11 +19,15 @@ def main():
     x_test = x_test/255
 
     model = tf.keras.Sequential([
-        tf.keras.layers.Flatten(input_shape=(28, 28), name='flatten_layer'),
+        tf.keras.layers.Reshape((28, 28, 1), input_shape=(28, 28)),
+        tf.keras.layers.Conv2D(32, (3, 3), activation='relu'\
+            , input_shape=(28, 28)),
+        tf.keras.layers.Conv2D(64, (3, 3), activation='relu'),
+        tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+        tf.keras.layers.Dropout(0.25),
+        tf.keras.layers.Flatten(),
         tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(0.4),
-        tf.keras.layers.Dense(128, activation='relu'),
-        tf.keras.layers.Dropout(0.2),
+        tf.keras.layers.Dropout(0.5),
         tf.keras.layers.Dense(10, activation='softmax')
     ], name='my_model')
     model.summary()
