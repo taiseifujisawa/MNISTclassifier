@@ -2,7 +2,8 @@ import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
 import cv2
-from mnist_cnn import mnist_show
+from pathlib import Path
+from mnist_cnn import array2img
 
 
 def grad_cam(input_model, x, layer_name):
@@ -20,8 +21,8 @@ def grad_cam(input_model, x, layer_name):
     preprocessed_input = np.expand_dims(x, axis=0)
 
     # 入力1つ、出力2つ(複数ある時はリストで渡す)のfunctional API
-    grad_model = tf.keras.models.Model([input_model.inputs],
-                                       [input_model.get_layer(layer_name).output, input_model.output])
+    grad_model = tf.keras.models.Model([input_model.inputs],\
+    [input_model.get_layer(layer_name).output, input_model.output])
 
     # tapeにconvの出力からout(prediction結果)までの計算を保存
     # conv_outputs->最後のconv層の出力(None, 24, 24, 64)、predictions->最終出力(None, 10)
@@ -48,34 +49,33 @@ def grad_cam(input_model, x, layer_name):
     weights = np.mean(guided_grads, axis=(0, 1))    # 下処理あり
     cam = np.dot(output, weights)
 
-    # 画像を元画像と同じ大きさにスケーリング
-    cam = cv2.resize(cam, (28, 28), cv2.INTER_LINEAR)
+    # cam画像を元画像と同じ大きさにスケーリング
+    cam = cv2.resize(cam, (28,28), cv2.INTER_LINEAR)
     # ReLUの代わり
-    cam = np.maximum(cam, 0)
-    # ヒートマップを計算
-    heatmap = cam / cam.max()
+    cam  = np.maximum(cam, 0)
+    # camヒートマップを計算(255倍しておく)
+    heatmap = cam / cam.max() * 255
+    # camモノクロヒートマップに疑似的に色をつける
+    jet_cam = cv2.applyColorMap(np.uint8(heatmap), cv2.COLORMAP_JET)
 
-    # モノクロ画像に疑似的に色をつける
-    jet_cam = cv2.applyColorMap(np.uint8(255.0*heatmap), cv2.COLORMAP_JET)
-    # RGBに変換
-    rgb_cam = cv2.cvtColor(jet_cam, cv2.COLOR_BGR2RGB)
-    # もとの画像に合成
-    #rgb_cam = (np.float32(rgb_cam) + np.expand_dims(x, 2) / 2)
-    org_img = cv2.cvtColor(np.uint8(cv2.bitwise_not(x)), cv2.COLOR_GRAY2RGB)
-    output = cv2.addWeighted(src1=org_img, alpha=0.3,
-                             src2=rgb_cam, beta=0.7, gamma=0)
+    # もとの画像を白黒反転後カラー化(255倍しておく)
+    org_img = cv2.cvtColor(np.uint8((1 - x) * 255), cv2.COLOR_GRAY2BGR)
 
-    return output
+    # 合成
+    output = cv2.addWeighted(src1=org_img, alpha=0.4, src2=jet_cam, beta=0.6, gamma=0)
+
+    # 255で割って返す
+    return output / 255
 
 
 def main():
-    FIG_NO = 18
+    FIG_NO = 0
 
     _, (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     x_test = x_test/255
 
     try:
-        new_model = tf.keras.models.load_model('my_model')
+        new_model = tf.keras.models.load_model('my_model.h5')
     except OSError:
         print("No model exists")
     else:
@@ -88,10 +88,10 @@ def main():
         print(f"the answer is {y_test[FIG_NO]}.")
         print("the input image has been stored as \"Grad-CAM.png\"")
         print("the input image has been stored as \"Sample.png\"")
-        fig_gradcam = plt.figure()
-        plt.imshow(grad_cam(new_model, x_test[FIG_NO], 'conv'))
-        fig_gradcam.savefig("Grad-CAM.png")
-        mnist_show(x_test[FIG_NO])
+        cam = grad_cam(new_model,x_test[FIG_NO] ,'conv')
+        array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape, True)
+        array2img(Path.cwd() / 'Grad-CAM.png', cam, cam.shape[:2])
+
 
 
 if __name__ == '__main__':

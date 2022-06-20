@@ -1,5 +1,6 @@
 import tensorflow as tf
-from mnist_cnn import mnist_show
+from mnist_cnn import array2img
+from pathlib import Path
 
 def main():
     FIG_NO = 5
@@ -11,7 +12,7 @@ def main():
         new_model = tf.keras.models.load_model('my_model')
     except OSError:
         print("No model exists")
-    else:    
+    else:
         new_model.summary()
         test_loss, test_acc = new_model.evaluate(x_test, y_test, verbose=0)
         print('Test loss:', test_loss)
@@ -20,7 +21,7 @@ def main():
         print(f"the prediction is {predictions[FIG_NO].argmax()}.")
         print(f"the answer is {y_test[FIG_NO]}.")
         print("the input image has been stored as \"Sample.png\"")
-        mnist_show(x_test[FIG_NO])
+        array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape)
 
 if __name__ == '__main__':
     main()
