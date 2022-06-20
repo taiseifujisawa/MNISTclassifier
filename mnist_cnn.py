@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 # save a flatten vector as a png
 def mnist_show(flattenpixel):
     """
-    Args: 
+    Args:
         flattenpixel: a flatten vector of one image
     Returns:
         None
