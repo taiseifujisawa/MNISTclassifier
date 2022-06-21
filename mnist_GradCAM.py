@@ -107,11 +107,9 @@ def grad_cam(input_model, x, layer_name):
 
 
 def main():
-    mnist = MnistClassifier.reconstructmodel()
-    mnist.X_test[0] = grad_cam(mnist.model, mnist.X_test[0] ,'last_conv')
-    mnist.array2img(0, Path.cwd())
+    pass
 
-def _main():
+def main():
     FIG_NO = 0
 
     _, (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -134,6 +132,7 @@ def _main():
         cam = grad_cam(new_model,x_test[FIG_NO] ,'last_conv')
         #array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape, True)
         #array2img(Path.cwd() / 'Grad-CAM.png', cam, cam.shape[:2])
+
 
 
 if __name__ == '__main__':
