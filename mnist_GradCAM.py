@@ -84,13 +84,16 @@ def grad_cam(input_model, x, layer_name):
 
     # 重みを平均化して、レイヤーの出力に乗じる
     weights = np.mean(grads, axis=(0, 1))          # 下処理なし
-    weights = np.mean(guided_grads, axis=(0, 1))    # 下処理あり
+    #weights = np.mean(guided_grads, axis=(0, 1))    # 下処理あり
     cam = np.dot(output, weights)
 
-    # cam画像を元画像と同じ大きさにスケーリング
-    cam = cv2.resize(cam, (28,28), cv2.INTER_LINEAR)
+    guided_grads = np.mean(guided_grads, axis=2)
     # ReLUの代わり
     cam  = np.maximum(cam, 0)
+    cam *= guided_grads
+    # cam画像を元画像と同じ大きさにスケーリング
+    cam = cv2.resize(cam, (28,28), cv2.INTER_LINEAR)
+
     # camヒートマップを計算(255倍しておく)
     heatmap = cam / cam.max() * 255
     # camモノクロヒートマップに疑似的に色をつける
@@ -101,6 +104,8 @@ def grad_cam(input_model, x, layer_name):
 
     # 合成
     output = cv2.addWeighted(src1=org_img, alpha=0.4, src2=jet_cam, beta=0.6, gamma=0)
+
+    output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
 
     # 255で割って返す
     return output / 255
@@ -132,6 +137,9 @@ def main():
         cam = grad_cam(new_model,x_test[FIG_NO] ,'last_conv')
         #array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape, True)
         #array2img(Path.cwd() / 'Grad-CAM.png', cam, cam.shape[:2])
+        fig_gradcam = plt.figure()
+        plt.imshow(cam)
+        fig_gradcam.savefig("Grad-CAM.png")
 
 
 
