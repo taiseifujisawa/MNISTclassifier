@@ -86,6 +86,16 @@ class MnistClassifier:
         print('Test loss:', test_loss)
         print('Test accuracy:', test_acc)
 
+    def prediction(self):
+        """全テストデータで予測、予測結果と間違えたテストデータのインデックスpickle化して保存
+        """
+        predictions = self.model.predict(self.X_test)
+        predictions = [np.argmax(pred) for pred in predictions]
+        index_failure = [i for i, (p, t) in enumerate(zip(predictions, self.y_test)) if p != t]
+        serialize_write((predictions, index_failure), Path.cwd() / 'predictions')
+        self.predict = predictions
+        self.index_failure = index_failure
+
     @classmethod
     def deeplearning(cls):
         """ディープラーニングを実行
@@ -100,6 +110,7 @@ class MnistClassifier:
         mnist.training()
         mnist.drawlossgraph()
         mnist.testevaluate()
+        mnist.prediction()
         return mnist
 
     @classmethod
@@ -123,21 +134,8 @@ class MnistClassifier:
         else:
             mnist.model.summary()
             mnist.testevaluate()
+            mnist.prediction()
         return mnist
-
-    def prediction(self) -> tuple:
-        """全テストデータで予測、予測結果と間違えたテストデータのインデックスpickle化して保存
-
-        Returns:
-            tuple: 予測結果と間違えたテストデータのインデックス
-        """
-        predictions = self.model.predict(self.X_test)
-        predictions = [np.argmax(pred) for pred in predictions]
-        index_failure = [i for i, (p, t) in enumerate(zip(predictions, self.y_test)) if p != t]
-        serialize_write((predictions, index_failure), Path.cwd() / 'predictions')
-        self.predict = predictions
-        self.index_failure = index_failure
-        return (predictions, index_failure)
 
     def array2img(self, test_no: int, save_dir: Path, extension='png', target_dpi=None, inverse=False, overwrite=True):
         """テストデータを画像ファイルとして保存
@@ -190,9 +188,6 @@ def main():
     # 保存済みモデル再構築
     mnist = MnistClassifier.reconstructmodel()
 
-    # 予測結果、間違えたインデックスを取得
-    predictions, index_failure = mnist.prediction()
-
     # 0 - 9, failureのディレクトリ作成
     cwd = Path.cwd()
     (cwd / 'failure').mkdir(exist_ok=True)
@@ -202,9 +197,9 @@ def main():
     # 間違えたテストデータをpng, csvに出力
     with open('failure.csv', 'w', encoding='utf-8') as f:
         f.write('index,prediction,answer\n')
-        for i in index_failure:
+        for i in mnist.index_failure:
             mnist.array2img(i, Path(f'failure'), inverse=True)
-            f.write(f'{i},{predictions[i]},{mnist.y_test[i]}\n')
+            f.write(f'{i},{mnist.predict[i]},{mnist.y_test[i]}\n')
 
     # 全テストデータをpngに出力
     for i, y_test in enumerate(tqdm(mnist.y_test)):
