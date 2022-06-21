@@ -1,9 +1,30 @@
 import tensorflow as tf
-import numpy as np
 import matplotlib.pyplot as plt
-import cv2
 from pathlib import Path
-from mnist_cnn import array2img
+import numpy as np
+import cv2
+import pickle
+from tqdm import tqdm
+from mnist_cnn import MnistClassifier, serialize_write, serialize_read
+
+
+class GradCam:
+    def __init__(self, model):
+        self.model = model
+
+    def grad_cam(self):
+        # GradCAM用に出力を最終CNNマップ(self.last_conv)とsoftmaxとしたモデルを作成(Functional API)
+        grad_model = tf.keras.Model([self.model.inputs],\
+            [self.model.get_layer(self.model.self.last_layername).output, self.model.output])
+
+        # tapeにself.last_convの出力からout(prediction結果)までの計算を保存
+        with tf.GradientTape() as tape:
+            # 1つだけNoneだとNoneのところで自動でshapeを合わせる、実質Noneにはlen(self.y_test)が入る
+            conv_outputs, predictions = self.model(self.X_test)
+            class_idx = [np.argmax(pred) for pred in predictions]
+            loss = [pred[class_idx] for pred in predictions]
+
+
 
 
 def grad_cam(input_model, x, layer_name):
@@ -69,6 +90,9 @@ def grad_cam(input_model, x, layer_name):
 
 
 def main():
+    pass
+
+def main():
     FIG_NO = 0
 
     _, (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -88,9 +112,9 @@ def main():
         print(f"the answer is {y_test[FIG_NO]}.")
         print("the input image has been stored as \"Grad-CAM.png\"")
         print("the input image has been stored as \"Sample.png\"")
-        cam = grad_cam(new_model,x_test[FIG_NO] ,'conv')
-        array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape, True)
-        array2img(Path.cwd() / 'Grad-CAM.png', cam, cam.shape[:2])
+        cam = grad_cam(new_model,x_test[FIG_NO] ,'last_conv')
+        #array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape, True)
+        #array2img(Path.cwd() / 'Grad-CAM.png', cam, cam.shape[:2])
 
 
 
