@@ -19,11 +19,28 @@ class GradCam:
 
         # tapeにself.last_convの出力からout(prediction結果)までの計算を保存
         with tf.GradientTape() as tape:
-            # 1つだけNoneだとNoneのところで自動でshapeを合わせる、実質Noneにはlen(self.y_test)が入る
+            # shape: (sample, layercol, layerrow, layerchannel), (sample, outputs)
             conv_outputs, predictions = self.model(self.X_test)
-            class_idx = [np.argmax(pred) for pred in predictions]
-            loss = [pred[class_idx] for pred in predictions]
+            class_idx = [np.argmax(pred) for pred in predictions]   # shape: (sample,)
+            loss = [pred[class_idx] for pred in predictions]        # shape: (sample,)
+        grads = tape.gradient(loss, conv_outputs)    # shape: (sample, layercol, layerrow, layerchannel)
 
+        # cast <class 'tensorflow.python.framework.ops.EagerTensor'>
+        # to <class 'numpy.ndarray'>
+        conv_outputs = conv_outputs.numpy()     # shape: (sample, layercol, layerrow, layerchannel)
+        grads = grads.numpy()                   # shape: (sample, layercol, layerrow, layerchannel)
+
+        # global average pooling
+        layer_weights = np.mean(guided_backprop, axis=(0, 1))
+
+        # apply weights
+        cam = np.dot(conv_outputs, layer_weights)   # shape: (sample, layercol, layerrow)
+
+
+        # guided back-propagation
+        forward_guide = (output > 0).astype(int)
+        backprop_guide = (grads > 0).astype(int)
+        guided_backprop = grads * forward_guide * backprop_guide
 
 
 
@@ -90,9 +107,11 @@ def grad_cam(input_model, x, layer_name):
 
 
 def main():
-    pass
+    mnist = MnistClassifier.reconstructmodel()
+    mnist.X_test[0] = grad_cam(mnist.model, mnist.X_test[0] ,'last_conv')
+    mnist.array2img(0, Path.cwd())
 
-def main():
+def _main():
     FIG_NO = 0
 
     _, (x_test, y_test) = tf.keras.datasets.mnist.load_data()
@@ -115,7 +134,6 @@ def main():
         cam = grad_cam(new_model,x_test[FIG_NO] ,'last_conv')
         #array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape, True)
         #array2img(Path.cwd() / 'Grad-CAM.png', cam, cam.shape[:2])
-
 
 
 if __name__ == '__main__':
