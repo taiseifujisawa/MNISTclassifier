@@ -9,10 +9,11 @@ from mnist_cnn import MnistClassifier, serialize_write, serialize_read
 
 
 class GradCam:
-    def __init__(self, model):
+    def __init__(self, model, kind):
         self.model = model
+        self.kind = kind
 
-    def grad_cam(self):
+    def grad_cam(self, guide=False):
         # GradCAM用に出力を最終CNNマップ(self.last_conv)とsoftmaxとしたモデルを作成(Functional API)
         grad_model = tf.keras.Model([self.model.inputs],\
             [self.model.get_layer(self.model.self.last_layername).output, self.model.output])
@@ -31,16 +32,21 @@ class GradCam:
         grads = grads.numpy()                   # shape: (sample, layercol, layerrow, layerchannel)
 
         # global average pooling
-        layer_weights = np.mean(guided_backprop, axis=(0, 1))
+        layer_weights = np.mean(grads, axis=(1, 2))
 
         # apply weights
-        cam = np.dot(conv_outputs, layer_weights)   # shape: (sample, layercol, layerrow)
-
+        cam = np.sum(
+            np.array([conv_outputs[:, :, i] * layer_weights[i] for i in range(layer_weights.shape[-1])])
+        , axis=0)          # shape: (sample, layercol, layerrow)
+        # 1枚の場合こちらでも可
+        #cam = np.dot(conv_outputs, layer_weights)
 
         # guided back-propagation
-        forward_guide = (output > 0).astype(int)
+        forward_guide = (conv_outputs > 0).astype(int)
         backprop_guide = (grads > 0).astype(int)
-        guided_backprop = grads * forward_guide * backprop_guide
+        guided_grads = grads * forward_guide * backprop_guide
+
+
 
 
 
@@ -82,40 +88,60 @@ def grad_cam(input_model, x, layer_name):
     gate_r = tf.cast(grads > 0, 'float32').numpy()
     guided_grads = (gate_f * gate_r * grads)
 
-    # 重みを平均化して、レイヤーの出力に乗じる
-    weights = np.mean(grads, axis=(0, 1))          # 下処理なし
-    #weights = np.mean(guided_grads, axis=(0, 1))    # 下処理あり
-    cam = np.dot(output, weights)
+    flag = True
 
-    guided_grads = np.mean(guided_grads, axis=2)
-    # ReLUの代わり
-    cam  = np.maximum(cam, 0)
-    cam *= guided_grads
-    # cam画像を元画像と同じ大きさにスケーリング
-    cam = cv2.resize(cam, (28,28), cv2.INTER_LINEAR)
+    if flag:
+        # 重みを平均化して、レイヤーの出力に乗じる
+        weights = np.mean(grads, axis=(0, 1))          # 下処理なし
+        #weights = np.mean(guided_grads, axis=(0, 1))    # 下処理あり
+        cam = np.sum(
+            np.array([output[:, :, i] * weights[i] for i in range(weights.shape[-1])])
+        , axis=0)
+        #cam = np.dot(output, weights)      # 上と同じ(カラー不可)
 
-    # camヒートマップを計算(255倍しておく)
-    heatmap = cam / cam.max() * 255
-    # camモノクロヒートマップに疑似的に色をつける
-    jet_cam = cv2.applyColorMap(np.uint8(heatmap), cv2.COLORMAP_JET)
+        guided_grads = np.mean(guided_grads, axis=2)
+        # ReLUの代わり
+        cam  = np.maximum(cam, 0)
+        cam *= guided_grads
+        # cam画像を元画像と同じ大きさにスケーリング
+        cam = cv2.resize(cam, (28,28), cv2.INTER_LINEAR)
+
+        # camヒートマップを計算(255倍しておく)
+        heatmap = cam / cam.max() * 255
+        # camモノクロヒートマップに疑似的に色をつける
+        jet_cam = cv2.applyColorMap(np.uint8(heatmap), cv2.COLORMAP_HOT)
+    else:
+        weights = np.mean(grads, axis=(0, 1))    # 下処理なし
+        cam = np.sum(
+            np.array([output[:, :, i] * weights[i] for i in range(weights.shape[-1])])
+        , axis=0)
+        #cam = np.dot(output, weights)      # 上と同じ(カラー不可)
+        cam  = np.maximum(cam, 0)
+        cam = cv2.resize(cam, (28,28), cv2.INTER_LINEAR)
+        heatmap = cam / cam.max() * 255
+        jet_cam = cv2.applyColorMap(np.uint8(heatmap), cv2.COLORMAP_HOT)
 
     # もとの画像を白黒反転後カラー化(255倍しておく)
-    org_img = cv2.cvtColor(np.uint8((1 - x) * 255), cv2.COLOR_GRAY2BGR)
+    org_img = cv2.cvtColor(np.uint8(x * 255), cv2.COLOR_GRAY2BGR)
+    cv2.imwrite("heatmap.png", heatmap)
+    cv2.imwrite("org-img.png", org_img)
+    cv2.imwrite("jet_cam.png", jet_cam)
 
     # 合成
-    output = cv2.addWeighted(src1=org_img, alpha=0.4, src2=jet_cam, beta=0.6, gamma=0)
+    out = cv2.addWeighted(src1=org_img, alpha=0.4, src2=jet_cam, beta=0.6, gamma=0)
 
-    output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+    #output = cv2.cvtColor(output, cv2.COLOR_BGR2RGB)
+    cv2.imwrite("Grad-CAM.png", out)
 
     # 255で割って返す
-    return output / 255
+    return out / 255
 
 
 def main():
     pass
 
 def main():
-    FIG_NO = 0
+    FIG_NO = 5
 
     _, (x_test, y_test) = tf.keras.datasets.mnist.load_data()
     x_test = x_test/255
@@ -134,12 +160,13 @@ def main():
         print(f"the answer is {y_test[FIG_NO]}.")
         print("the input image has been stored as \"Grad-CAM.png\"")
         print("the input image has been stored as \"Sample.png\"")
-        cam = grad_cam(new_model,x_test[FIG_NO] ,'last_conv')
+        cam = grad_cam(new_model,x_test[FIG_NO] ,'last_conv') * 255
         #array2img(Path.cwd() / 'Sample.png', x_test[FIG_NO], x_test[FIG_NO].shape, True)
         #array2img(Path.cwd() / 'Grad-CAM.png', cam, cam.shape[:2])
-        fig_gradcam = plt.figure()
-        plt.imshow(cam)
-        fig_gradcam.savefig("Grad-CAM.png")
+        #cv2.imwrite("Grad-CAM.png", cam)
+        #fig_gradcam = plt.figure()
+        #plt.imshow(cam)
+        #fig_gradcam.savefig("Grad-CAM.png")
 
 
 
