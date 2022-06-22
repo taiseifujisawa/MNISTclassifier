@@ -43,11 +43,11 @@ class MnistClassifier:
         """
         self.model = tf.keras.Sequential([
             tf.keras.layers.Reshape(self.input_shape + (1,), input_shape=self.input_shape),
-            tf.keras.layers.Conv2D(16, (3, 3), activation='relu'\
-                , input_shape=(28, 28)),
-            tf.keras.layers.Conv2D(16, (3, 3), activation='relu', name=self.last_layername),
+            tf.keras.layers.Conv2D(32, (3, 3), activation='relu'),
             tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
-            tf.keras.layers.Dropout(0.25),
+            tf.keras.layers.Conv2D(64, (3, 3), activation='relu', name=self.last_layername),
+            tf.keras.layers.MaxPooling2D(pool_size=(2, 2)),
+            tf.keras.layers.Dropout(0.5),
             tf.keras.layers.Flatten(),
             tf.keras.layers.Dense(32, activation='relu'),
             tf.keras.layers.Dropout(0.5),
@@ -166,7 +166,7 @@ def serialize_write(obj, filepath: Path):
         filepath (Path): 保存するパス
     """
     with open(filepath, 'wb') as f:
-        pickle.dump(obj, f)
+        pickle.dump(obj, f, protocol=4)
 
 def serialize_read(filepath: Path):
     """_summary_
@@ -183,10 +183,10 @@ def serialize_read(filepath: Path):
 
 def main():
     # ディープラーニング実行
-    #mnist = MnistClassifier.deeplearning()
+    mnist = MnistClassifier.deeplearning()
 
     # 保存済みモデル再構築
-    mnist = MnistClassifier.reconstructmodel()
+    #mnist = MnistClassifier.reconstructmodel()
 
     # 0 - 9, failureのディレクトリ作成
     cwd = Path.cwd()
