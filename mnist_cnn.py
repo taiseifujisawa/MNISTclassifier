@@ -92,7 +92,7 @@ class MnistClassifier:
         predictions = self.model.predict(self.X_test)
         predictions = [np.argmax(pred) for pred in predictions]
         index_failure = [i for i, (p, t) in enumerate(zip(predictions, self.y_test)) if p != t]
-        serialize_write((predictions, index_failure), Path.cwd() / 'predictions')
+        serialize_write((predictions, index_failure), Path.cwd() / 'predictions.pkl')
         self.predict = predictions
         self.index_failure = index_failure
 
