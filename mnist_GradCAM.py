@@ -63,19 +63,32 @@ class GradCam:
         # 合成
         out = cv2.addWeighted(src1=org_img, alpha=0.4, src2=hm_colored, beta=0.6, gamma=0)     # shape: (layercol, layerrow)
 
-        cv2.imwrite("heatmap.png", heatmap)
-        cv2.imwrite("org-img.png", org_img)
-        cv2.imwrite("jet_cam.png", hm_colored)
-        cv2.imwrite("Grad-CAM.png", out)
-
         return out              # shape: (1,)
+
+    def save_img(self, img: np.ndarray, test_no: int, save_dir: Path, extension='png', overwrite=True):
+        output_filename = f'{test_no}_cam.{extension}'
+        output_filepath = Path.cwd() / save_dir / output_filename
+        if overwrite or not output_filepath.exists():
+            cv2.imwrite(str(output_filepath), img)
+        else:
+            print(f'There already exists {output_filepath.name}. Overwrite is not valid.')
 
 
 def main():
     mnist = MnistClassifier.reconstructmodel()
-    mnist.model.summary()
     cam = GradCam(mnist)
-    cam.get_cam(1)
+
+    # 間違えたテストデータをpngに出力
+    for i in mnist.index_failure:
+        Path(f'failure/{i}').mkdir(exist_ok=True)
+        img = cam.get_cam(i)
+        cam.save_img(img, i, Path(f'failure/{i}'))
+
+    # 全テストデータをpngに出力
+    for i, y_test in enumerate(tqdm(mnist.y_test)):
+        Path(f'{y_test}/{i}').mkdir(exist_ok=True)
+        img = cam.get_cam(i)
+        cam.save_img(img, i, Path(f'{y_test}/{i}'))
 
 
 if __name__ == '__main__':

@@ -198,12 +198,14 @@ def main():
     with open('failure.csv', 'w', encoding='utf-8') as f:
         f.write('index,prediction,answer\n')
         for i in mnist.index_failure:
-            mnist.array2img(i, Path(f'failure'), inverse=True)
+            Path(f'failure/{i}').mkdir(exist_ok=True)
+            mnist.array2img(i, Path(f'failure/{i}'))
             f.write(f'{i},{mnist.predict[i]},{mnist.y_test[i]}\n')
 
     # 全テストデータをpngに出力
     for i, y_test in enumerate(tqdm(mnist.y_test)):
-        mnist.array2img(i, Path(f'{y_test}'), inverse=True)
+        Path(f'{y_test}/{i}').mkdir(exist_ok=True)
+        mnist.array2img(i, Path(f'{y_test}/{i}'))
 
 if __name__ == '__main__':
     main()
